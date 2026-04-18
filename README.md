@@ -8,7 +8,7 @@
 | :--- | :--- | :--- | :--- |
 | [MyPowershell](/Mypowershell/) | 简单的 C++ shell。 | Mypowershell.cpp/.exe | `v1.2.0` |
 | [记账本](/记账本/) | 可以记账，保存csv。 | main.py | `v1.0.0-​stable` |
-| [我的Set模块](/杂项/MySet.py) | 添加了自定义集合类。 | MySet.py | `v1.0.0-​stable` |
+| [hash_calculator](/hash_calculator.py) | 哈希计算器。 | MySet.py | `v1.0.0-​stable` |
 | [战舰小游戏](/战舰小游戏/) | 可以利用程序玩小游戏。 | app.py/.exe(exe在dist) | `v0.2.0-beta` |
 |其他杂项...|
  
