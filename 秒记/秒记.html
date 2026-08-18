@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>秒记 · 一句话记录任何事</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+  /* ===== 自定义 CSS 变量（琥珀色主题） ===== */
+  :root {
+    --background: hsl(40 30% 96%);
+    --foreground: hsl(24 10% 15%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(24 10% 15%);
+    --primary: hsl(32 90% 55%);
+    --primary-foreground: hsl(32 100% 98%);
+    --secondary: hsl(36 70% 92%);
+    --muted: hsl(36 50% 94%);
+    --muted-foreground: hsl(24 8% 45%);
+    --accent: hsl(36 70% 92%);
+    --accent-foreground: hsl(24 20% 25%);
+    --border: hsl(32 20% 88%);
+    --input: hsl(32 20% 88%);
+    --ring: hsl(32 90% 55%);
+    --destructive: hsl(10 85% 55%);
+    --success: hsl(142 55% 45%);
+  }
+
+  body {
+    background: linear-gradient(135deg, rgba(255, 237, 213, 0.5) 0%, var(--background) 50%, rgba(254, 243, 199, 0.4) 100%);
+    min-height: 100vh;
+    color: var(--foreground);
+  }
+
+  /* ===== 通用工具类 ===== */
+  .bg-background { background-color: var(--background); }
+  .bg-card { background-color: var(--card); }
+  .bg-muted { background-color: var(--muted); }
+  .bg-primary { background-color: var(--primary); }
+  .bg-accent { background-color: var(--accent); }
+  .bg-destructive { background-color: var(--destructive); }
+  .bg-success { background-color: var(--success); }
+
+  .text-foreground { color: var(--foreground); }
+  .text-muted-foreground { color: var(--muted-foreground); }
+  .text-primary { color: var(--primary); }
+  .text-primary-foreground { color: var(--primary-foreground); }
+  .text-accent-foreground { color: var(--accent-foreground); }
+  .text-destructive { color: var(--destructive); }
+  .text-success { color: var(--success); }
+
+  .border-border { border-color: var(--border); }
+  .border-primary { border-color: var(--primary); }
+  .border-destructive { border-color: var(--destructive); }
+  .border-success { border-color: var(--success); }
+
+  .ring-primary { --tw-ring-color: var(--primary); }
+
+  /* ===== 按钮基础 ===== */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 0.375rem; border-radius: 0.75rem; font-weight: 500;
+    font-size: 0.875rem; transition: all 0.2s; cursor: pointer;
+    border: none; outline: none; white-space: nowrap;
+  }
+  .btn:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  .btn-primary { background-color: var(--primary); color: var(--primary-foreground); }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-outline { background-color: transparent; border: 1px solid var(--border); color: var(--foreground); }
+  .btn-outline:hover { background-color: var(--accent); }
+  .btn-ghost { background-color: transparent; color: var(--muted-foreground); }
+  .btn-ghost:hover { background-color: var(--accent); color: var(--foreground); }
+
+  .btn-sm { height: 2.5rem; padding: 0 1rem; font-size: 0.875rem; }
+  .btn-icon { width: 1.75rem; height: 1.75rem; padding: 0; border-radius: 0.375rem; }
+
+  /* ===== 输入框 ===== */
+  .input {
+    width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem;
+    border: 2px solid color-mix(in srgb, var(--border) 60%, transparent);
+    background-color: var(--card); color: var(--foreground);
+    font-size: 1rem; transition: all 0.2s; outline: none;
+  }
+  .input:focus {
+    border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+  .input::placeholder { color: var(--muted-foreground); opacity: 0.6; }
+  .input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .textarea {
+    width: 100%; padding: 0.75rem 1rem; border-radius: 0.75rem;
+    border: 1px solid var(--border); background-color: var(--card);
+    color: var(--foreground); font-size: 0.875rem;
+    resize: vertical; outline: none; transition: all 0.2s;
+    font-family: inherit;
+  }
+  .textarea:focus {
+    border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+  }
+
+  /* ===== Badge ===== */
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    height: 1.25rem; padding: 0 0.5rem; border-radius: 9999px;
+    font-size: 11px; font-weight: 500; border: 1px solid;
+    white-space: nowrap;
+  }
+  .badge-todo { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .badge-idea { background: #faf5ff; color: #7e22ce; border-color: #e9d5ff; }
+  .badge-reminder { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+  .badge-note { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+
+  /* ===== 任务卡片 ===== */
+  .task-card {
+    position: relative; border-radius: 0.75rem;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    background-color: var(--card); padding: 0.875rem;
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .task-card:hover {
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+  }
+  .task-card.completed { opacity: 0.6; background-color: color-mix(in srgb, var(--muted) 30%, transparent); }
+  .task-card.completed .task-title { text-decoration: line-through; color: var(--muted-foreground); }
+
+  .task-checkbox {
+    flex-shrink: 0; width: 1.25rem; height: 1.25rem; margin-top: 2px;
+    border-radius: 0.375rem; border: 2px solid color-mix(in srgb, var(--border) 80%, transparent);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.2s; background: white;
+  }
+  .task-checkbox:hover { border-color: color-mix(in srgb, var(--primary) 60%, transparent); }
+  .task-checkbox.checked {
+    background-color: var(--success); border-color: var(--success); color: white;
+  }
+  .task-checkbox.checked.bounce { animation: checkBounce 0.6s ease; }
+
+  @keyframes checkBounce {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.3); }
+    50% { transform: scale(0.9); }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+  }
+
+  .task-delete-btn {
+    opacity: 0; transform: scale(0.8);
+    transition: all 0.15s ease;
+  }
+  .task-card:hover .task-delete-btn { opacity: 1; transform: scale(1); }
+
+  /* ===== 卡片入场动画 ===== */
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .task-enter { animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+  @keyframes slideOut {
+    from { opacity: 1; transform: translateX(0) scale(1); }
+    to { opacity: 0; transform: translateX(20px) scale(0.95); }
+  }
+  .task-exit { animation: slideOut 0.2s ease-in forwards; }
+
+  /* ===== 加载点动画 ===== */
+  .loading-dot {
+    width: 6px; height: 6px; border-radius: 9999px;
+    background-color: var(--primary);
+    animation: dotBounce 0.6s ease-in-out infinite;
+  }
+  .loading-dot:nth-child(1) { animation-delay: 0s; }
+  .loading-dot:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes dotBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  /* ===== 弹窗 ===== */
+  .dialog-overlay {
+    position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.4);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    padding: 1rem; animation: fadeIn 0.2s ease;
+  }
+  .dialog-content {
+    background-color: var(--card); border-radius: 1rem;
+    width: 100%; max-width: 28rem; padding: 1.5rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    animation: dialogIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes dialogIn {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* ===== 下拉选择 ===== */
+  .select {
+    width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem;
+    border: 1px solid var(--border); background-color: var(--card);
+    color: var(--foreground); font-size: 0.875rem;
+    outline: none; transition: all 0.2s; cursor: pointer;
+  }
+  .select:focus {
+    border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 15%, transparent);
+  }
+
+  /* ===== Toast ===== */
+  .toast-container {
+    position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+    z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+    pointer-events: none;
+  }
+  .toast {
+    background-color: var(--card); color: var(--foreground);
+    padding: 0.625rem 1rem; border-radius: 0.75rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem; font-weight: 500;
+    border: 1px solid var(--border);
+    animation: toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+  }
+  .toast.success { border-left: 3px solid var(--success); }
+  .toast.error { border-left: 3px solid var(--destructive); }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+  }
+
+  /* ===== 数字滚动 ===== */
+  .number-pop { animation: numberPop 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+  @keyframes numberPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  /* ===== kbd ===== */
+  kbd {
+    display: inline-block; padding: 2px 6px;
+    background-color: var(--muted); border-radius: 4px;
+    font-family: ui-monospace, monospace; font-size: 10px;
+    color: var(--muted-foreground);
+  }
+
+  /* ===== 页面入场 ===== */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up-1 { animation: fadeUp 0.5s ease 0s both; }
+  .fade-up-2 { animation: fadeUp 0.5s ease 0.1s both; }
+  .fade-up-3 { animation: fadeUp 0.5s ease 0.2s both; }
+  .fade-up-4 { animation: fadeUp 0.5s ease 0.3s both; }
+</style>
+</head>
+<body class="bg-background">
+
+<main class="max-w-5xl mx-auto px-4 md:px-6 py-8 md:py-12">
+  <!-- ===== 标题区 ===== -->
+  <div class="text-center mb-8 fade-up-1">
+    <div class="inline-flex items-center gap-2 mb-2">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center shadow-sm">
+        <!-- Zap 图标 SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-bold text-foreground tracking-tight">秒记</h1>
+    </div>
+    <p class="text-sm text-muted-foreground">
+      想到什么，记下来就好 · AI 帮你整理
+    </p>
+  </div>
+
+  <!-- ===== 输入区 ===== -->
+  <div class="mb-10 fade-up-2">
+    <form id="taskForm" class="w-full">
+      <div class="relative group">
+        <!-- Sparkles 图标 -->
+        <div class="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 text-primary/60">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            <path d="M5 3v4"/>
+            <path d="M19 17v4"/>
+            <path d="M3 5h4"/>
+            <path d="M17 19h4"/>
+          </svg>
+        </div>
+        <input
+          type="text"
+          id="taskInput"
+          placeholder="想到什么，直接打出来…"
+          class="input h-16 pl-14 pr-28 text-lg rounded-2xl shadow-sm"
+          autocomplete="off"
+        />
+        <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <div id="loadingState" class="hidden items-center gap-1 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium">
+            <span class="flex gap-1">
+              <span class="loading-dot"></span>
+              <span class="loading-dot"></span>
+              <span class="loading-dot"></span>
+            </span>
+            <span class="ml-1.5">AI 解析中</span>
+          </div>
+          <button
+            type="submit"
+            id="submitBtn"
+            class="btn btn-primary btn-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 2 11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+            <span>记录</span>
+          </button>
+        </div>
+      </div>
+      <p class="mt-2.5 text-xs text-muted-foreground text-center">
+        按 <kbd>Enter</kbd> 快速提交 · AI 自动分类提取时间
+      </p>
+    </form>
+  </div>
+
+  <!-- ===== 三栏清单 ===== -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-10 fade-up-3">
+    <!-- 今天要做 -->
+    <div class="flex flex-col h-full min-h-[200px]">
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🔥</span>
+          <h3 class="text-sm font-semibold text-foreground">今天要做</h3>
+          <span id="todayCount" class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-medium">0</span>
+        </div>
+      </div>
+      <div id="todayColumn" class="flex-1 space-y-2.5 rounded-xl bg-muted/30 p-2.5 border border-border/40 min-h-[200px]">
+        <div class="empty-state py-8 text-center text-xs text-muted-foreground/70">
+          <p>今天要做的事还没有，记录一条吧～</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 以后再说 -->
+    <div class="flex flex-col h-full min-h-[200px]">
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">💡</span>
+          <h3 class="text-sm font-semibold text-foreground">以后再说</h3>
+          <span id="laterCount" class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-medium">0</span>
+        </div>
+      </div>
+      <div id="laterColumn" class="flex-1 space-y-2.5 rounded-xl bg-muted/30 p-2.5 border border-border/40 min-h-[200px]">
+        <div class="empty-state py-8 text-center text-xs text-muted-foreground/70">
+          <p>暂无想法，有灵感随时记录～</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 已完成 -->
+    <div class="flex flex-col h-full min-h-[200px]">
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">✅</span>
+          <h3 class="text-sm font-semibold text-foreground">已完成</h3>
+          <span id="completedCount" class="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md font-medium">0</span>
+        </div>
+        <button id="clearCompletedBtn" class="hidden btn btn-ghost text-xs px-2" style="height: 1.5rem;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+            <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+          </svg>
+          清空
+        </button>
+      </div>
+      <div id="completedColumn" class="flex-1 space-y-2.5 rounded-xl bg-muted/30 p-2.5 border border-border/40 min-h-[200px]">
+        <div class="empty-state py-8 text-center text-xs text-muted-foreground/70">
+          <p>还没有完成的任务，加油～</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 统计区 ===== -->
+  <div class="pt-4 pb-6 border-t border-border/40 fade-up-4">
+    <div class="flex items-center justify-center gap-8 text-sm text-muted-foreground">
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-success">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>
+        </svg>
+        <span>
+          今日已完成&nbsp;
+          <span id="statsCompleted" class="font-semibold text-foreground" style="font-variant-numeric: tabular-nums;">0</span>
+          &nbsp;件
+        </span>
+      </div>
+      <div class="w-px h-4 bg-border"></div>
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-primary">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+        <span>
+          共&nbsp;
+          <span id="statsActive" class="font-semibold text-foreground" style="font-variant-numeric: tabular-nums;">0</span>
+          &nbsp;件待办
+        </span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== 编辑弹窗 ===== -->
+<div id="editDialog" class="dialog-overlay hidden">
+  <div class="dialog-content">
+    <div class="mb-4">
+      <h2 class="text-lg font-semibold text-foreground">编辑任务</h2>
+    </div>
+
+    <div class="space-y-4 py-2">
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-foreground">原始内容</label>
+        <textarea id="editRawText" rows="2" class="textarea resize-none"></textarea>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-foreground">任务标题</label>
+        <input type="text" id="editTitle" class="input text-sm" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-foreground">类型</label>
+          <select id="editType" class="select">
+            <option value="todo">待办</option>
+            <option value="idea">想法</option>
+            <option value="reminder">提醒</option>
+            <option value="note">笔记</option>
+          </select>
+        </div>
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-foreground">优先级</label>
+          <select id="editPriority" class="select">
+            <option value="high">高</option>
+            <option value="medium">中</option>
+            <option value="low">低</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm font-medium text-foreground">时间（可选）</label>
+        <input type="datetime-local" id="editTime" class="input text-sm" />
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="cancelEditBtn" class="btn btn-outline btn-sm">取消</button>
+      <button id="saveEditBtn" class="btn btn-primary btn-sm">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Toast 容器 ===== -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ========== 数据模型 ==========
+  const STORAGE_KEY = 'miaoji_tasks_standalone';
+
+  const TYPE_LABEL = { todo: '待办', idea: '想法', reminder: '提醒', note: '笔记' };
+  const TYPE_ICON_SVG = {
+    todo: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+    idea: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>',
+    reminder: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+    note: '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+  };
+
+  let tasks = [];
+  let isLoading = false;
+  let editingTaskId = null;
+
+  // ========== 工具函数 ==========
+  function genId() {
+    return 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function isTodayTask(task) {
+    if (task.status === 'completed') return false;
+    if (task.priority === 'high') return true;
+    if (!task.time) return false;
+    const taskDate = new Date(task.time.replace(' ', 'T'));
+    if (isNaN(taskDate.getTime())) return false;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    return taskDate.getTime() < tomorrowStart.getTime();
+  }
+
+  function isLaterTask(task) {
+    return task.status === 'active' && !isTodayTask(task);
+  }
+
+  function isCompletedTask(task) {
+    return task.status === 'completed';
+  }
+
+  function formatTime(timeStr) {
+    if (!timeStr) return '';
+    const d = new Date(timeStr.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return timeStr;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const taskDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diffDays = Math.round((taskDay.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+    const timeStrShort = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    if (diffDays === 0) return '今天 ' + timeStrShort;
+    if (diffDays === 1) return '明天 ' + timeStrShort;
+    if (diffDays === -1) return '昨天 ' + timeStrShort;
+    if (diffDays > 1 && diffDays <= 7) return diffDays + '天后 ' + timeStrShort;
+    if (diffDays < -1 && diffDays >= -7) return (-diffDays) + '天前 ' + timeStrShort;
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + timeStrShort;
+  }
+
+  function countTodayCompleted(tasks) {
+    const today = new Date().toDateString();
+    return tasks.filter(function(t) {
+      return t.status === 'completed' && t.completedAt && new Date(t.completedAt).toDateString() === today;
+    }).length;
+  }
+
+  function countActive(tasks) {
+    return tasks.filter(function(t) { return t.status === 'active'; }).length;
+  }
+
+  // ========== 智能解析（前端规则版） ==========
+  function parseTaskAI(text) {
+    const lower = text.toLowerCase();
+    let type = 'todo';
+    let priority = 'medium';
+    let title = text;
+    let time = null;
+
+    // 类型判断
+    if (/idea|想法|灵感|创意|思路|点子/.test(text)) {
+      type = 'idea';
+    } else if (/提醒|别忘了|记得|不要忘|准时/.test(text)) {
+      type = 'reminder';
+    } else if (/笔记|记录下|记一下|备忘/.test(text)) {
+      type = 'note';
+    } else if (/会议|开会|约|见|面试|拜访|赴约/.test(text)) {
+      type = 'reminder';
+    } else if (/买|采购|囤|取|拿|交|提交|完成|做|写|整理|准备/.test(text)) {
+      type = 'todo';
+    }
+
+    // 优先级判断
+    if (/紧急|重要|必须|马上|立刻|尽快|赶紧|高优|优先|立刻|deadline|截止|最后/.test(text)) {
+      priority = 'high';
+    } else if (/有空|闲了|以后|有空再|慢慢|不急|有空再说|随便/.test(text)) {
+      priority = 'low';
+    }
+
+    // 时间提取
+    time = parseTimeExpression(text);
+
+    // 标题提炼（去掉前缀语气词）
+    title = text
+      .replace(/^(这个idea不错[：:]?|提醒我|别忘了|记得|帮忙记一下[：:]?|哦对了[，,]?|我想[记一下]?[：:]?)/, '')
+      .replace(/^(买|做|写|看|去|准备|整理|交|提交|完成)\s*/, function(match) { return match; })
+      .trim();
+    if (title.length > 60) title = title.slice(0, 57) + '...';
+    if (!title) title = text;
+
+    return {
+      task_type: type,
+      task_time: time,
+      priority: priority,
+      title: title,
+    };
+  }
+
+  function parseTimeExpression(text) {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const date = now.getDate();
+    const dayOfWeek = now.getDay(); // 0=周日
+
+    let targetDate = null;
+    let targetHour = null;
+    let targetMinute = 0;
+
+    // 匹配时间点
+    const timeMatch = text.match(/(上午|下午|晚上|早上|中午|凌晨)?\s*(\d{1,2})\s*(点|:|：)(\d{1,2})?(分|半)?/);
+    if (timeMatch) {
+      let h = parseInt(timeMatch[2]);
+      const period = timeMatch[1];
+      const m = timeMatch[4] ? parseInt(timeMatch[4]) : 0;
+      const half = timeMatch[5] === '半' ? 30 : 0;
+      targetMinute = m + half;
+
+      if (period === '下午' || period === '晚上') {
+        if (h < 12) h += 12;
+      } else if (period === '凌晨') {
+        if (h === 12) h = 0;
+      } else if (period === '中午') {
+        if (h < 10) h += 12;
+      } else if (period === '上午' || period === '早上') {
+        if (h === 12) h = 0;
+      } else {
+        // 没有时段，智能判断
+        if (h < 7) h += 12; // 3点 -> 下午3点
+      }
+      targetHour = h % 24;
+    }
+
+    // 匹配日期
+    if (/今天|今日|今晚|今天下午|今天晚上|今天上午/.test(text)) {
+      targetDate = new Date(year, month, date);
+    } else if (/明天|明日|明早|明晚/.test(text)) {
+      targetDate = new Date(year, month, date + 1);
+    } else if (/后天/.test(text)) {
+      targetDate = new Date(year, month, date + 2);
+    } else if (/大后天/.test(text)) {
+      targetDate = new Date(year, month, date + 3);
+    } else if (/昨天/.test(text)) {
+      targetDate = new Date(year, month, date - 1);
+    } else if (/前天/.test(text)) {
+      targetDate = new Date(year, month, date - 2);
+    } else if (/下周/.test(text)) {
+      targetDate = new Date(year, month, date + 7);
+    } else {
+      // 周几
+      const weekdayMatch = text.match(/(周|星期)([一二三四五六七1-7])/);
+      if (weekdayMatch) {
+        const c = weekdayMatch[2];
+        let targetDay;
+        if (c === '一' || c === '1') targetDay = 1;
+        else if (c === '二' || c === '2') targetDay = 2;
+        else if (c === '三' || c === '3') targetDay = 3;
+        else if (c === '四' || c === '4') targetDay = 4;
+        else if (c === '五' || c === '5') targetDay = 5;
+        else if (c === '六' || c === '6') targetDay = 6;
+        else if (c === '七' || c === '7' || c === '日') targetDay = 0;
+
+        if (targetDay !== undefined) {
+          let diff = targetDay - dayOfWeek;
+          if (diff <= 0) diff += 7; // 下一周
+          targetDate = new Date(year, month, date + diff);
+        }
+      }
+
+      // XX号/日
+      const dateNumMatch = text.match(/(\d{1,2})\s*(号|日)/);
+      if (dateNumMatch) {
+        const day = parseInt(dateNumMatch[1]);
+        if (day >= 1 && day <= 31) {
+          let m = month;
+          if (day < date) m += 1; // 下个月
+          targetDate = new Date(year, m, day);
+        }
+      }
+
+      // 月底/月末
+      if (/月底|月末/.test(text)) {
+        targetDate = new Date(year, month + 1, 0);
+      }
+    }
+
+    // 组合结果
+    if (!targetDate && !targetHour) return null;
+
+    if (!targetDate) {
+      // 只有时间，默认今天
+      targetDate = new Date(year, month, date);
+    }
+    if (targetHour === null) targetHour = 9;
+
+    targetDate.setHours(targetHour, targetMinute, 0, 0);
+
+    // 格式化为 YYYY-MM-DD HH:mm:ss
+    const y = targetDate.getFullYear();
+    const mo = String(targetDate.getMonth() + 1).padStart(2, '0');
+    const d = String(targetDate.getDate()).padStart(2, '0');
+    const h = String(targetDate.getHours()).padStart(2, '0');
+    const mi = String(targetDate.getMinutes()).padStart(2, '0');
+    return y + '-' + mo + '-' + d + ' ' + h + ':' + mi + ':00';
+  }
+
+  // ========== 存储 ==========
+  function saveTasks() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    } catch(e) { console.warn('保存失败', e); }
+  }
+
+  function loadTasks() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        tasks = JSON.parse(saved);
+        return true;
+      }
+    } catch(e) { console.warn('读取失败', e); }
+
+    // 初始示例任务
+    const today = new Date().toISOString().slice(0, 10);
+    tasks = [
+      {
+        id: 'mock-1',
+        title: '下午3点和张总开会',
+        type: 'reminder',
+        time: today + ' 15:00:00',
+        priority: 'high',
+        rawText: '明天下午3点和张总开会',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        source: 'mock',
+      },
+      {
+        id: 'mock-2',
+        title: '买牛奶',
+        type: 'todo',
+        time: null,
+        priority: 'low',
+        rawText: '买牛奶',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        source: 'mock',
+      },
+      {
+        id: 'mock-3',
+        title: '做一个AI水印工具的idea',
+        type: 'idea',
+        time: null,
+        priority: 'medium',
+        rawText: '这个idea不错：做一个AI水印工具',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        source: 'mock',
+      },
+    ];
+    saveTasks();
+    return true;
+  }
+
+  // ========== Toast ==========
+  function showToast(message, type) {
+    type = type || 'success';
+    const container = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(function() {
+      el.style.animation = 'toastOut 0.3s ease forwards';
+      setTimeout(function() { el.remove(); }, 300);
+    }, 2000);
+  }
+
+  // ========== 渲染任务卡片 ==========
+  function createTaskCard(task) {
+    const card = document.createElement('div');
+    card.className = 'task-card task-enter' + (task.status === 'completed' ? ' completed' : '');
+    card.dataset.id = task.id;
+
+    const timeHtml = task.time
+      ? '<div class="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+          + '<span>' + formatTime(task.time) + '</span>'
+        + '</div>'
+      : '';
+
+    const priorityHtml = task.priority === 'high'
+      ? '<span class="flex items-center gap-0.5 text-[11px] text-destructive font-medium">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+          + '高优先级'
+        + '</span>'
+      : '';
+
+    card.innerHTML =
+      '<div class="flex items-start gap-3">'
+        + '<button class="task-checkbox' + (task.status === 'completed' ? ' checked' : '') + '" data-action="toggle" aria-label="完成">'
+          + (task.status === 'completed'
+              ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+              : '')
+        + '</button>'
+        + '<div class="flex-1 min-w-0">'
+          + '<div class="flex items-center gap-2 mb-1.5">'
+            + '<span class="badge badge-' + task.type + '">'
+              + TYPE_ICON_SVG[task.type]
+              + TYPE_LABEL[task.type]
+            + '</span>'
+            + priorityHtml
+          + '</div>'
+          + '<p class="task-title text-sm font-medium text-foreground leading-relaxed">' + escapeHtml(task.title) + '</p>'
+          + timeHtml
+        + '</div>'
+        + '<button class="task-delete-btn btn btn-ghost btn-icon text-muted-foreground hover:text-destructive" data-action="delete" aria-label="删除">'
+          + '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>'
+        + '</button>'
+      + '</div>';
+
+    // 事件绑定
+    card.addEventListener('click', function(e) {
+      const actionBtn = e.target.closest('[data-action]');
+      if (actionBtn) {
+        e.stopPropagation();
+        const action = actionBtn.dataset.action;
+        if (action === 'toggle') toggleTask(task.id);
+        else if (action === 'delete') deleteTask(task.id);
+      } else {
+        openEditDialog(task.id);
+      }
+    });
+
+    return card;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // ========== 渲染清单 ==========
+  function render() {
+    const todayTasks = tasks.filter(isTodayTask);
+    const laterTasks = tasks.filter(isLaterTask);
+    const completedTasks = tasks.filter(isCompletedTask);
+
+    renderColumn('todayColumn', todayTasks, '今天要做的事还没有，记录一条吧～');
+    renderColumn('laterColumn', laterTasks, '暂无想法，有灵感随时记录～');
+    renderColumn('completedColumn', completedTasks, '还没有完成的任务，加油～');
+
+    // 更新计数
+    document.getElementById('todayCount').textContent = todayTasks.length;
+    document.getElementById('laterCount').textContent = laterTasks.length;
+    document.getElementById('completedCount').textContent = completedTasks.length;
+
+    // 清空按钮显示
+    const clearBtn = document.getElementById('clearCompletedBtn');
+    if (completedTasks.length > 0) clearBtn.classList.remove('hidden');
+    else clearBtn.classList.add('hidden');
+
+    // 统计
+    const completedToday = countTodayCompleted(tasks);
+    const activeTotal = countActive(tasks);
+
+    const statsCompleted = document.getElementById('statsCompleted');
+    const statsActive = document.getElementById('statsActive');
+    if (statsCompleted.textContent !== String(completedToday)) {
+      statsCompleted.textContent = completedToday;
+      statsCompleted.classList.remove('number-pop');
+      void statsCompleted.offsetWidth;
+      statsCompleted.classList.add('number-pop');
+    }
+    if (statsActive.textContent !== String(activeTotal)) {
+      statsActive.textContent = activeTotal;
+      statsActive.classList.remove('number-pop');
+      void statsActive.offsetWidth;
+      statsActive.classList.add('number-pop');
+    }
+  }
+
+  function renderColumn(columnId, taskList, emptyText) {
+    const col = document.getElementById(columnId);
+    // 保留空状态模板
+    const emptyEl = col.querySelector('.empty-state');
+
+    // 移除现有任务卡片
+    col.querySelectorAll('.task-card').forEach(function(el) { el.remove(); });
+
+    if (taskList.length === 0) {
+      if (!emptyEl) {
+        const div = document.createElement('div');
+        div.className = 'empty-state py-8 text-center text-xs text-muted-foreground/70';
+        div.innerHTML = '<p>' + emptyText + '</p>';
+        col.appendChild(div);
+      } else {
+        emptyEl.style.display = '';
+        emptyEl.querySelector('p').textContent = emptyText;
+      }
+    } else {
+      if (emptyEl) emptyEl.style.display = 'none';
+      taskList.forEach(function(task) {
+        col.appendChild(createTaskCard(task));
+      });
+    }
+  }
+
+  // ========== 任务操作 ==========
+  async function addTask(rawText) {
+    const trimmed = rawText.trim();
+    if (!trimmed || isLoading) return;
+
+    isLoading = true;
+    document.getElementById('submitBtn').style.display = 'none';
+    const loadingEl = document.getElementById('loadingState');
+    loadingEl.classList.remove('hidden');
+    loadingEl.classList.add('flex');
+
+    try {
+      // 模拟 AI 解析延迟
+      await new Promise(function(resolve) { setTimeout(resolve, 600 + Math.random() * 400); });
+
+      const parsed = parseTaskAI(trimmed);
+
+      const newTask = {
+        id: genId(),
+        title: parsed.title,
+        type: parsed.task_type,
+        time: parsed.task_time,
+        priority: parsed.priority,
+        rawText: trimmed,
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        source: 'user',
+      };
+
+      tasks.unshift(newTask);
+      saveTasks();
+      render();
+      showToast('已记录');
+    } catch(e) {
+      showToast('添加失败，请重试', 'error');
+    } finally {
+      isLoading = false;
+      loadingEl.classList.add('hidden');
+      loadingEl.classList.remove('flex');
+      document.getElementById('submitBtn').style.display = '';
+    }
+  }
+
+  function toggleTask(id) {
+    const task = tasks.find(function(t) { return t.id === id; });
+    if (!task) return;
+
+    // 找到对应卡片做弹跳动画
+    const card = document.querySelector('.task-card[data-id="' + id + '"]');
+    const checkbox = card ? card.querySelector('.task-checkbox') : null;
+
+    if (task.status === 'active') {
+      if (checkbox) {
+        checkbox.classList.add('bounce');
+        setTimeout(function() { checkbox.classList.remove('bounce'); }, 600);
+      }
+      task.status = 'completed';
+      task.completedAt = new Date().toISOString();
+    } else {
+      task.status = 'active';
+      task.completedAt = null;
+    }
+
+    saveTasks();
+    render();
+  }
+
+  function deleteTask(id) {
+    const card = document.querySelector('.task-card[data-id="' + id + '"]');
+    if (card) {
+      card.classList.add('task-exit');
+      setTimeout(function() {
+        tasks = tasks.filter(function(t) { return t.id !== id; });
+        saveTasks();
+        render();
+      }, 200);
+    } else {
+      tasks = tasks.filter(function(t) { return t.id !== id; });
+      saveTasks();
+      render();
+    }
+    showToast('已删除');
+  }
+
+  function updateTask(id, updates) {
+    const task = tasks.find(function(t) { return t.id === id; });
+    if (!task) return;
+    Object.assign(task, updates);
+    saveTasks();
+    render();
+    showToast('已更新');
+  }
+
+  function clearCompleted() {
+    const count = tasks.filter(function(t) { return t.status === 'completed'; }).length;
+    if (count === 0) return;
+    tasks = tasks.filter(function(t) { return t.status !== 'completed'; });
+    saveTasks();
+    render();
+    showToast('已清空 ' + count + ' 条已完成任务');
+  }
+
+  // ========== 编辑弹窗 ==========
+  function openEditDialog(id) {
+    const task = tasks.find(function(t) { return t.id === id; });
+    if (!task) return;
+    editingTaskId = id;
+
+    document.getElementById('editRawText').value = task.rawText;
+    document.getElementById('editTitle').value = task.title;
+    document.getElementById('editType').value = task.type;
+    document.getElementById('editPriority').value = task.priority;
+
+    if (task.time) {
+      document.getElementById('editTime').value = task.time.replace(' ', 'T').slice(0, 16);
+    } else {
+      document.getElementById('editTime').value = '';
+    }
+
+    document.getElementById('editDialog').classList.remove('hidden');
+  }
+
+  function closeEditDialog() {
+    document.getElementById('editDialog').classList.add('hidden');
+    editingTaskId = null;
+  }
+
+  function saveEdit() {
+    if (!editingTaskId) return;
+    const title = document.getElementById('editTitle').value.trim();
+    const rawText = document.getElementById('editRawText').value.trim();
+    const type = document.getElementById('editType').value;
+    const priority = document.getElementById('editPriority').value;
+    const timeVal = document.getElementById('editTime').value;
+
+    updateTask(editingTaskId, {
+      title: title || rawText,
+      rawText: rawText,
+      type: type,
+      priority: priority,
+      time: timeVal ? timeVal.replace('T', ' ') + ':00' : null,
+    });
+
+    closeEditDialog();
+  }
+
+  // ========== 初始化 ==========
+  function init() {
+    loadTasks();
+    render();
+
+    // 自动聚焦输入框
+    const input = document.getElementById('taskInput');
+    setTimeout(function() { input.focus(); }, 100);
+
+    // 表单提交
+    document.getElementById('taskForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const val = input.value;
+      if (!val.trim() || isLoading) return;
+      input.value = '';
+      addTask(val);
+      setTimeout(function() { input.focus(); }, 50);
+    });
+
+    // 清空已完成
+    document.getElementById('clearCompletedBtn').addEventListener('click', clearCompleted);
+
+    // 编辑弹窗
+    document.getElementById('cancelEditBtn').addEventListener('click', closeEditDialog);
+    document.getElementById('saveEditBtn').addEventListener('click', saveEdit);
+    document.getElementById('editDialog').addEventListener('click', function(e) {
+      if (e.target === this) closeEditDialog();
+    });
+
+    // Esc 关闭弹窗
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeEditDialog();
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>
