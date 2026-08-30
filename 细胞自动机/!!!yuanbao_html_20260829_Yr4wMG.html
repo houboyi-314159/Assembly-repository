@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>康威生命游戏 · 彩色点燃系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
+  }
+  h1 { margin-bottom: 8px; font-size: 22px; text-shadow: 0 0 10px #00ff88; }
+  canvas { border: 1px solid #333; cursor: pointer; }
+  .controls { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 820px; }
+  button {
+    padding: 7px 14px; border: 1px solid #00ff88; background: transparent;
+    color: #00ff88; cursor: pointer; font-family: inherit; font-size: 13px;
+    border-radius: 4px; transition: all .2s;
+  }
+  button:hover { background: #00ff88; color: #0a0a1a; }
+  button.fire { border-color: #ff4444; color: #ff4444; }
+  button.fire:hover { background: #ff4444; color: #0a0a1a; box-shadow: 0 0 12px #ff4444; }
+  .slider-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #aaa; flex-wrap: wrap; justify-content: center; }
+  .slider-row input[type="range"] { width: 160px; accent-color: #ff4444; }
+  .slider-row .val { color: #ff4444; font-weight: bold; min-width: 20px; }
+  .toggle-row { margin-top: 6px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #aaa; }
+  .info { margin-top: 8px; font-size: 12px; color: #888; text-align: center; }
+  .stat { margin-top: 6px; font-size: 13px; color: #00ff88; }
+</style>
+</head>
+<body>
+<h1>🧬 康威生命游戏 · 彩色版</h1>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <button onclick="toggleRun()">▶ 开始/暂停</button>
+  <button onclick="step()">⏭ 单步</button>
+  <button onclick="randomize()">🎲 随机</button>
+  <button onclick="clearAll()">🗑 清空</button>
+  <button class="fire" onclick="ignite()">🔥 点燃</button>
+  <button onclick="preset('blinker')">💡 闪烁器</button>
+  <button onclick="preset('toad')">🐸 蟾蜍</button>
+  <button onclick="preset('beacon')">📡 信标</button>
+  <button onclick="preset('pulsar')">⭐ 脉冲星</button>
+  <button onclick="preset('glider')">🚀 滑翔机</button>
+  <button onclick="preset('gosper')">💥 高斯帕枪</button>
+  <button onclick="preset('rpentomino')">🔺 R5</button>
+  <button onclick="preset('acorn')">🌰 橡子</button>
+  <button onclick="preset('diehard')">💀 死星</button>
+</div>
+<div class="slider-row">
+  点燃力度：
+  <input type="range" id="firePower" min="1" max="5" value="3" oninput="updateSlider()">
+  <span class="val" id="fireVal">3</span>
+  <span id="fireLabel">中等</span>
+</div>
+<div class="toggle-row">
+  边界模式：
+  <label><input type="radio" name="wrap" value="wrap" checked onchange="setWrap(true)"> 🔄 环绕（飞出对面回来）</label>
+  <label><input type="radio" name="wrap" value="dead" onchange="setWrap(false)"> 🧱 死边界（飞出即消失）</label>
+  <span id="wrapHint" style="color:#ffaa44; margin-left:8px;">环绕会让滑翔机绕回，死星/橡子建议切死边界</span>
+</div>
+<div class="stat" id="stat">代数 0 · 存活 0 · 相位 -</div>
+<div class="info">点击/拖拽画布放细胞 · 空格键暂停/继续 · 🔥点燃会在结构旁投放彩色细胞 · 死星在死边界下 130 代后全灭</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const COLS = 90, ROWS = 60, CELL = 11, GAP = 1;
+cv.width = COLS * (CELL + GAP) + GAP;
+cv.height = ROWS * (CELL + GAP) + GAP;
+
+let grid = makeGrid();
+let running = false, animId = null, last = 0, speed = 90, gen = 0;
+let wrap = true;                 // true=环绕, false=死边界
+let currentPreset = '';
+let currentPeriod = 0;
+
+// ---------- 网格：每个细胞 {alive, color} ----------
+function makeGrid() {
+  return Array.from({length: ROWS}, () => Array.from({length: COLS}, () => ({alive: false, color: null})));
+}
+function randomColor() {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 90%, 62%)`;
+}
+
+// ---------- 边界切换 ----------
+function setWrap(v) {
+  wrap = v;
+  document.getElementById('wrapHint').textContent =
+    wrap ? '环绕会让滑翔机绕回，死星/橡子建议切死边界' : '死边界：滑翔机飞出即消失，适合验证死星/橡子全灭';
+}
+
+// ---------- 邻居计数 ----------
+function neighbors(r, c) {
+  let n = 0;
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      let nr, nc;
+      if (wrap) {
+        nr = (r + dr + ROWS) % ROWS;
+        nc = (c + dc + COLS) % COLS;
+      } else {
+        nr = r + dr; nc = c + dc;
+        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      }
+      if (grid[nr][nc].alive) n++;
+    }
+  return n;
+}
+
+// ---------- 演化（B3/S23，彩色：新生细胞取随机色） ----------
+function nextGen() {
+  const ng = makeGrid();
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const n = neighbors(r, c);
+      const cell = grid[r][c];
+      if (cell.alive) {
+        ng[r][c] = (n === 2 || n === 3) ? {alive: true, color: cell.color} : {alive: false, color: null};
+      } else if (n === 3) {
+        // 新生：随机颜色（保留"血统/出生代"视觉）
+        ng[r][c] = {alive: true, color: randomColor()};
+      }
+    }
+  grid = ng; gen++;
+}
+
+function loop(t) {
+  if (!running) return;
+  if (t - last > speed) { nextGen(); draw(); last = t; }
+  animId = requestAnimationFrame(loop);
+}
+
+function toggleRun() {
+  running = !running;
+  if (running) { last = performance.now(); loop(last); }
+  else cancelAnimationFrame(animId);
+}
+function step() { running = false; cancelAnimationFrame(animId); nextGen(); draw(); }
+
+function randomize() {
+  clearAll();
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (Math.random() > 0.72) grid[r][c] = {alive: true, color: randomColor()};
+  gen = 0; currentPreset = ''; draw();
+}
+function clearAll() { running = false; cancelAnimationFrame(animId); grid = makeGrid(); gen = 0; currentPreset = ''; draw(); }
+
+function updateSlider() {
+  const v = document.getElementById('firePower').value;
+  document.getElementById('fireVal').textContent = v;
+  const labels = {1:'微风', 2:'轻触', 3:'中等', 4:'猛烈', 5:'核爆'};
+  document.getElementById('fireLabel').textContent = labels[v];
+}
+
+function ignite() {
+  running = false; cancelAnimationFrame(animId);
+  const power = parseInt(document.getElementById('firePower').value);
+  const configs = {
+    1: { attempts: 80,  clusterMin: 1, clusterMax: 2, maxPlace: 10, radius: 2 },
+    2: { attempts: 150, clusterMin: 2, clusterMax: 3, maxPlace: 18, radius: 3 },
+    3: { attempts: 200, clusterMin: 3, clusterMax: 6, maxPlace: 30, radius: 4 },
+    4: { attempts: 300, clusterMin: 4, clusterMax: 8, maxPlace: 50, radius: 5 },
+    5: { attempts: 500, clusterMin: 6, clusterMax: 12, maxPlace: 100, radius: 7 }
+  };
+  const cfg = configs[power];
+  const wrapIgnite = wrap; // 点燃时也遵循当前边界模式
+  let placed = 0;
+  for (let t = 0; t < cfg.attempts; t++) {
+    const r = Math.floor(Math.random() * ROWS);
+    const c = Math.floor(Math.random() * COLS);
+    const n = neighbors(r, c);
+    if (n > 0 && n < 4) {
+      const clusterSize = cfg.clusterMin + Math.floor(Math.random() * (cfg.clusterMax - cfg.clusterMin + 1));
+      for (let i = 0; i < clusterSize; i++) {
+        let rr = r + Math.floor(Math.random() * (cfg.radius * 2 + 1)) - cfg.radius;
+        let cc = c + Math.floor(Math.random() * (cfg.radius * 2 + 1)) - cfg.radius;
+        if (wrapIgnite) { rr = (rr + ROWS) % ROWS; cc = (cc + COLS) % COLS; }
+        if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && !grid[rr][cc].alive) {
+          grid[rr][cc] = {alive: true, color: randomColor()}; placed++;
+        }
+      }
+      if (placed >= cfg.maxPlace) break;
+    }
+  }
+  if (placed === 0) {
+    for (let i = 0; i < cfg.maxPlace; i++) {
+      const rr = Math.floor(Math.random() * ROWS), cc = Math.floor(Math.random() * COLS);
+      grid[rr][cc] = {alive: true, color: randomColor()};
+    }
+  }
+  currentPreset = ''; draw();
+}
+
+// ---------- 绘制 ----------
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  let alive = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * (CELL + GAP) + GAP, y = r * (CELL + GAP) + GAP;
+      if (grid[r][c].alive) {
+        alive++;
+        ctx.fillStyle = grid[r][c].color || '#00ff88';
+        ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 4;
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(x, y, CELL, CELL);
+      }
+    }
+  }
+  let phase = '-';
+  if (currentPeriod > 0) phase = `${currentPreset} P${gen % currentPeriod}`;
+  else if (currentPreset) phase = currentPreset;
+  const border = wrap ? '环绕' : '死边界';
+  document.getElementById('stat').textContent = `代数 ${gen} · 存活 ${alive} · ${phase} · [${border}]`;
+}
+
+// ---------- 种子库（相对坐标，原点为图案左上角） ----------
+// ---------- 权威 RLE 种子库（LifeWiki 标准，已独立校验） ----------
+// 每条 RLE 都是数学上确认过的唯一正确形状；用解析器展开，杜绝"摆法太多"的歧义
+const SEEDS = {
+  rpentomino: { rle: 'b2o$2o$bo!',        period: 0, desc: 'R5 · 1103代后稳定，放出6架滑翔机' },
+  acorn:      { rle: 'bo$3bo$2o2b3o!',    period: 0, desc: '橡子 · 5206代后稳定，吐很多滑翔机' },
+  diehard:    { rle: '6bo$2o$bo3b3o!',    period: 0, desc: '死星 · 死边界下130代后全灭（吐滑翔机后什么都不剩）' },
+};
+
+// RLE -> 相对坐标数组（原点为图案左上角）
+function parseRLE(rle) {
+  rle = rle.replace(/#.*$/gm, '').replace(/\s/g, '');
+  const cells = [];
+  let r = 0, c = 0, i = 0, run = '';
+  while (i < rle.length) {
+    const ch = rle[i];
+    if (ch >= '0' && ch <= '9') { run += ch; i++; continue; }
+    const count = run === '' ? 1 : parseInt(run); run = '';
+    if (ch === '$') { r += count; c = 0; i++; continue; }
+    if (ch === '!' || ch === '>') break;
+    if (ch === 'o' || ch === 'b') {
+      for (let k = 0; k < count; k++) { if (ch === 'o') cells.push([r, c]); c++; }
+      i++; continue;
+    }
+    i++;
+  }
+  return cells;
+}
+
+// 把 RLE 种子居中放到当前网格
+function placeRLE(rle) {
+  const cells = parseRLE(rle);
+  let maxR = 0, maxC = 0;
+  cells.forEach(([r, c]) => { maxR = Math.max(maxR, r); maxC = Math.max(maxC, c); });
+  const cy = Math.floor(ROWS / 2), cx = Math.floor(COLS / 2);
+  const offR = cy - Math.floor(maxR / 2), offC = cx - Math.floor(maxC / 2);
+  cells.forEach(([r, c]) => {
+    const rr = offR + r, cc = offC + c;
+    if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS)
+      grid[rr][cc] = { alive: true, color: randomColor() };
+  });
+}
+
+const PULSAR = [
+  [2,4],[2,5],[2,6],[2,10],[2,11],[2,12],
+  [4,2],[4,7],[4,9],[4,14],
+  [5,2],[5,7],[5,9],[5,14],
+  [6,2],[6,7],[6,9],[6,14],
+  [7,4],[7,5],[7,6],[7,10],[7,11],[7,12],
+  [9,4],[9,5],[9,6],[9,10],[9,11],[9,12],
+  [10,2],[10,7],[10,9],[10,14],
+  [11,2],[11,7],[11,9],[11,14],
+  [12,2],[12,7],[12,9],[12,14],
+  [14,4],[14,5],[14,6],[14,10],[14,11],[14,12]
+];
+
+function preset(type) {
+  clearAll();
+  const cy = Math.floor(ROWS / 2), cx = Math.floor(COLS / 2);
+  currentPreset = type;
+
+  if (type === 'blinker') {
+    placeCells([[0,-1],[0,0],[0,1]], cy, cx); currentPeriod = 2;
+  } else if (type === 'toad') {
+    placeCells([[0,1],[0,2],[0,3],[1,0],[1,1],[1,2]], cy, cx); currentPeriod = 2;
+  } else if (type === 'beacon') {
+    placeCells([[0,0],[0,1],[1,0],[1,1],[2,2],[2,3],[3,2],[3,3]], cy, cx); currentPeriod = 2;
+  } else if (type === 'pulsar') {
+    const offR = cy - 7, offC = cx - 7;
+    PULSAR.forEach(([r, c]) => { const rr = offR + r, cc = offC + c; if (rr>=0&&rr<ROWS&&cc>=0&&cc<COLS) grid[rr][cc] = {alive:true, color:randomColor()}; });
+    currentPeriod = 3;
+  } else if (type === 'glider') {
+    placeCells([[0,1],[1,2],[2,0],[2,1],[2,2]], cy, cx); currentPeriod = 4;
+  } else if (type === 'gosper') {
+    const g = [[0,24],[1,22],[1,24],[2,12],[2,13],[2,20],[2,21],[2,34],[2,35],
+      [3,11],[3,15],[3,20],[3,21],[3,34],[3,35],[4,0],[4,1],[4,10],[4,16],[4,20],[4,21],
+      [5,0],[5,1],[5,10],[5,14],[5,16],[5,17],[5,22],[5,24],[6,10],[6,16],[6,24],
+      [7,11],[7,15],[8,12],[8,13]];
+    g.forEach(([r,c]) => { if (r<ROWS&&c<COLS) grid[r][c] = {alive:true, color:randomColor()}; });
+    currentPeriod = 30;
+  } else if (SEEDS[type]) {
+    placeRLE(SEEDS[type].rle);
+    currentPeriod = SEEDS[type].period;
+    console.log(`[${type}] ${SEEDS[type].desc}`);
+  }
+  draw();
+}
+
+// 相对坐标放置（dr/dc 相对中心点）—— 用于少数手写小图案
+function placeCells(rel, cy, cx) {
+  rel.forEach(([dr, dc]) => {
+    const rr = cy + dr, cc = cx + dc;
+    if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS)
+      grid[rr][cc] = {alive: true, color: randomColor()};
+  });
+}
+
+// ---------- 鼠标绘制 ----------
+let drag = false, dragMode = null;
+function cellAt(e) {
+  const rect = cv.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / (CELL + GAP));
+  const r = Math.floor((e.clientY - rect.top) / (CELL + GAP));
+  return {r, c};
+}
+cv.addEventListener('mousedown', e => {
+  drag = true; currentPreset = '';
+  const {r, c} = cellAt(e);
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    dragMode = grid[r][c].alive ? 'erase' : 'paint';
+    grid[r][c] = (dragMode === 'paint') ? {alive: true, color: randomColor()} : {alive: false, color: null};
+    draw();
+  }
+});
+cv.addEventListener('mousemove', e => {
+  if (!drag) return;
+  const {r, c} = cellAt(e);
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    if (dragMode === 'paint' && !grid[r][c].alive) grid[r][c] = {alive: true, color: randomColor()};
+    else if (dragMode === 'erase' && grid[r][c].alive) grid[r][c] = {alive: false, color: null};
+    draw();
+  }
+});
+window.addEventListener('mouseup', () => drag = false);
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); toggleRun(); } });
+
+randomize();
+</script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>彩色循环自动机</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
+  }
+  h1 { margin-bottom: 6px; font-size: 22px; text-shadow: 0 0 10px #ff00ff; color: #ff66ff; }
+  .subtitle { font-size: 12px; color: #aaa; margin-bottom: 12px; }
+  canvas { border: 2px solid #333; border-radius: 6px; cursor: pointer; }
+  .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button {
+    padding: 7px 14px; border: 1px solid #888; background: transparent;
+    color: #ccc; cursor: pointer; font-family: inherit; font-size: 13px;
+    border-radius: 4px; transition: all .2s;
+  }
+  button:hover { background: #333; color: #fff; }
+  button.primary { border-color: #ff66ff; color: #ff66ff; }
+  button.primary:hover { background: #ff66ff; color: #0a0a1a; box-shadow: 0 0 10px #ff66ff; }
+  .stat { margin-top: 8px; font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<h1>🌈 彩色循环自动机</h1>
+<div class="subtitle">Cyclic CA · 颜色循环竞争 · 永远不会变灰</div>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <button class="primary" onclick="toggle()">▶ 开始 / 暂停</button>
+  <button onclick="step()">⏭ 单步</button>
+  <button onclick="randomize()">🎲 重新随机</button>
+  <button onclick="addStructure()">✨ 投放结构</button>
+</div>
+<div class="stat" id="stat">代数：0 | 颜色数：14</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const COLS = 80;
+const ROWS = 50;
+const CELL = 10;
+cv.width = COLS * CELL;
+cv.height = ROWS * CELL;
+
+const NUM_COLORS = 14; // 颜色状态数
+let grid = [];
+let running = false;
+let generation = 0;
+let animId = null;
+let speed = 60;
+
+// 预计算HSL颜色
+function stateToColor(state) {
+  const hue = (state / NUM_COLORS) * 360;
+  return `hsl(${hue}, 90%, 55%)`;
+}
+
+// 预渲染颜色到离屏canvas（性能优化）
+const colorCache = [];
+for (let i = 0; i < NUM_COLORS; i++) {
+  colorCache.push(stateToColor(i));
+}
+
+function init() {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = Math.floor(Math.random() * NUM_COLORS);
+    }
+  }
+  generation = 0;
+  draw();
+  updateStat();
+}
+
+function randomize() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      grid[r][c] = Math.floor(Math.random() * NUM_COLORS);
+  generation = 0;
+  draw();
+  updateStat();
+}
+
+function addStructure() {
+  // 投放一个螺旋种子——会自我维持并扩散
+  const centerR = Math.floor(Math.random() * (ROWS - 16)) + 8;
+  const centerC = Math.floor(Math.random() * (COLS - 16)) + 8;
+  const size = 6 + Math.floor(Math.random() * 4);
+
+  for (let r = centerR - size; r <= centerR + size; r++) {
+    for (let c = centerC - size; c <= centerC + size; c++) {
+      if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+        const angle = Math.atan2(r - centerR, c - centerC);
+        const normalized = (angle + Math.PI) / (2 * Math.PI);
+        grid[r][c] = Math.floor(normalized * NUM_COLORS) % NUM_COLORS;
+      }
+    }
+  }
+  draw();
+}
+
+function step() {
+  const next = [];
+  for (let r = 0; r < ROWS; r++) next[r] = [];
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const current = grid[r][c];
+      let found = false;
+
+      // 检查8个邻居
+      const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+          const neighbor = grid[nr][nc];
+          // 循环规则：如果邻居是"下一个"状态，就变成那个状态
+          if (neighbor === (current + 1) % NUM_COLORS) {
+            next[r][c] = neighbor;
+            found = true;
+            break;
+          }
+        }
+      }
+
+      if (!found) {
+        next[r][c] = current; // 保持不变
+      }
+    }
+  }
+
+  grid = next;
+  generation++;
+  draw();
+  updateStat();
+}
+
+function draw() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.fillStyle = colorCache[grid[r][c]];
+      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+    }
+  }
+}
+
+function updateStat() {
+  document.getElementById('stat').textContent = `代数：${generation} | 颜色数：${NUM_COLORS}`;
+}
+
+function toggle() {
+  if (running) {
+    running = false;
+    cancelAnimationFrame(animId);
+  } else {
+    running = true;
+    loop();
+  }
+}
+
+let lastTime = 0;
+function loop(time) {
+  if (!running) return;
+  if (time - lastTime > speed) {
+    step();
+    lastTime = time;
+  }
+  animId = requestAnimationFrame(loop);
+}
+
+// 鼠标：画颜色
+let isDragging = false;
+
+cv.addEventListener('mousedown', e => {
+  isDragging = true;
+  paint(e);
+});
+
+cv.addEventListener('mousemove', e => {
+  if (isDragging) paint(e);
+});
+
+cv.addEventListener('mouseup', () => isDragging = false);
+cv.addEventListener('mouseleave', () => isDragging = false);
+
+function paint(e) {
+  const rect = cv.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / CELL);
+  const r = Math.floor((e.clientY - rect.top) / CELL);
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    const brushSize = 2;
+    for (let dr = -brushSize; dr <= brushSize; dr++) {
+      for (let dc = -brushSize; dc <= brushSize; dc++) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+          const dist = Math.sqrt(dr*dr + dc*dc);
+          if (dist <= brushSize) {
+            grid[nr][nc] = Math.floor(Math.random() * NUM_COLORS);
+          }
+        }
+      }
+    }
+    draw();
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); toggle(); }
+});
+
+init();
+</script>
+</body>
+</html>

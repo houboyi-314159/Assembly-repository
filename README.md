@@ -7,10 +7,11 @@
 | 项目 | 描述 | 主文件 | 状态 |
 | :--- | :--- | :--- | :--- |
 | [MyPowershell](/Mypowershell/) | 简单的 C++ shell。 | Mypowershell.cpp/.exe | `v1.2.0` |
-| [记账本](/记账本/) | 可以记账，保存csv。 | main.py | `v1.0.0-​stable` |
-| [hash_calculator](/hash_calculator.py) | 哈希计算器。 | MySet.py | `v1.0.0-​stable` |
+| [记账本](/记账本/) | 可以记账，保存csv。 | main.py | `v1.0.0-stable` |
+| [hash_calculator](/hash_calculator) | 哈希计算器。 |hash_calculator.py  | `v1.0.0-stable` |
 | [战舰小游戏](/战舰小游戏/) | 可以利用程序玩小游戏。 | app.py/.exe(exe在dist) | `v0.2.0-beta` |
-| [秒记](/秒记/) | 备忘录 | 秒记.html |
+| [秒记](/秒记/) | 备忘录 | 秒记.html | v0.2.0-beta |
+| [细胞自动机](/细胞自动机/) | …… | 多 | v1.0.0-stable |
 |其他杂项、开发中...|
  
 ## 许可证
@@ -56,4 +57,4 @@
 
 ---
 
-*最后更新：2026年8月18日*
+*最后更新：2026年8月30日*

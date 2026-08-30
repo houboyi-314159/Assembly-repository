@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>单身贵族 · 孔明棋</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a0a2e;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
+  }
+  h1 { margin-bottom: 6px; font-size: 24px; text-shadow: 0 0 10px #ffd700; color: #ffd700; }
+  .subtitle { font-size: 13px; color: #aaa; margin-bottom: 14px; }
+  canvas { border: 2px solid #ffd700; border-radius: 8px; cursor: pointer; }
+  .controls { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  button {
+    padding: 8px 18px; border: 1px solid #ffd700; background: transparent;
+    color: #ffd700; cursor: pointer; font-family: inherit; font-size: 14px;
+    border-radius: 4px; transition: all .2s;
+  }
+  button:hover { background: #ffd700; color: #1a0a2e; box-shadow: 0 0 12px #ffd700; }
+  button.auto { border-color: #00ff88; color: #00ff88; }
+  button.auto:hover { background: #00ff88; color: #1a0a2e; box-shadow: 0 0 12px #00ff88; }
+  button.stop { border-color: #ff4444; color: #ff4444; }
+  button.stop:hover { background: #ff4444; color: #1a0a2e; box-shadow: 0 0 12px #ff4444; }
+  .stat { margin-top: 10px; font-size: 14px; color: #ffd700; }
+  .hint { margin-top: 6px; font-size: 12px; color: #888; max-width: 400px; text-align: center; line-height: 1.6; }
+  .win { color: #00ff88; text-shadow: 0 0 10px #00ff88; font-size: 18px; }
+</style>
+</head>
+<body>
+<h1>♚ 单身贵族</h1>
+<div class="subtitle">孔明棋 · 跳棋消子</div>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <button onclick="undo()">↩ 悔棋</button>
+  <button onclick="restart()">🔄 重新开始</button>
+  <button onclick="hint()">💡 提示</button>
+  <button class="auto" onclick="autoPerfect()">👑 完美演示</button>
+  <button class="auto" onclick="autoRandom()">🎲 随机自动走</button>
+  <button class="stop" onclick="stopAuto()">⏹ 停止</button>
+</div>
+<div class="stat" id="stat">剩余棋子：32</div>
+<div class="hint" id="hint">点击棋子选中（变红），再点击目标位置跳跃。目标：最后只剩1颗且在正中央！</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const BOARD_SIZE = 7;
+const CELL = 64;
+const OFFSET = 40;
+cv.width = BOARD_SIZE * CELL + OFFSET * 2;
+cv.height = BOARD_SIZE * CELL + OFFSET * 2 + 20;
+
+let board = [];
+let selected = null;
+let history = [];
+let autoTimer = null;
+
+// 经典完美通关31步解法
+const PERFECT_SOLUTION = [
+  [0,2, 2,2], [0,4, 0,2], [1,1, 3,1], [1,3, 1,1], [1,5, 1,3],
+  [2,4, 0,4], [2,6, 2,4], [3,1, 3,3], [3,3, 1,3], [3,5, 3,3],
+  [4,0, 2,0], [4,2, 4,0], [4,4, 2,4], [4,6, 4,4], [5,1, 3,1],
+  [5,3, 5,1], [5,5, 5,3], [6,2, 4,2], [6,4, 6,2], [2,0, 4,0],
+  [0,0, 2,0], [0,2, 0,0], [0,4, 0,2], [2,2, 0,2], [4,0, 2,0],
+  [2,4, 2,2], [4,2, 4,0], [4,4, 4,2], [2,0, 4,0], [2,2, 4,2],
+  [4,0, 4,2]
+];
+
+function initBoard() {
+  board = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    board[r] = [];
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if ((r < 2 && c < 2) || (r < 2 && c > 4) || (r > 4 && c < 2) || (r > 4 && c > 4)) {
+        board[r][c] = -1;
+      } else {
+        board[r][c] = 1;
+      }
+    }
+  }
+  board[3][3] = 0;
+  selected = null;
+  history = [];
+  stopAuto();
+  updateStat();
+  document.getElementById('hint').textContent = '点击棋子选中（变红），再点击目标位置跳跃。目标：最后只剩1颗且在正中央！';
+}
+
+function isValid(r, c) {
+  return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] !== -1;
+}
+
+function getValidMoves(r, c) {
+  const moves = [];
+  const dirs = [[-2,0],[2,0],[0,-2],[0,2]];
+  for (const [dr, dc] of dirs) {
+    const nr = r + dr, nc = c + dc;
+    const mr = r + dr/2, mc = c + dc/2;
+    if (isValid(nr, nc) && board[nr][nc] === 0 && board[mr][mc] === 1) {
+      moves.push({r: nr, c: nc, eatR: mr, eatC: mc});
+    }
+  }
+  return moves;
+}
+
+function getAllMoves() {
+  const all = [];
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (board[r][c] === 1) {
+        const moves = getValidMoves(r, c);
+        moves.forEach(m => all.push({fromR: r, fromC: c, toR: m.r, toC: m.c, eatR: m.eatR, eatC: m.eatC}));
+      }
+  return all;
+}
+
+function hasAnyMove() {
+  return getAllMoves().length > 0;
+}
+
+function doMove(move) {
+  history.push({board: board.map(row => [...row])});
+  board[move.fromR][move.fromC] = 0;
+  board[move.toR][move.toC] = 1;
+  board[move.eatR][move.eatC] = 0;
+  selected = null;
+}
+
+function updateStat() {
+  let remaining = 0;
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (board[r][c] === 1) remaining++;
+  const statEl = document.getElementById('stat');
+  if (remaining === 1 && board[3][3] === 1) {
+    statEl.innerHTML = '<span class="win">🎉 恭喜通关！最后一颗在正中央！</span>';
+  } else if (remaining === 1) {
+    let pos = '';
+    for (let r = 0; r < BOARD_SIZE; r++)
+      for (let c = 0; c < BOARD_SIZE; c++)
+        if (board[r][c] === 1) pos = `行${r+1}列${c+1}`;
+    statEl.innerHTML = `<span class="win">剩1颗，但不在中央（${pos}），差一点！</span>`;
+  } else if (!hasAnyMove() && remaining > 1) {
+    statEl.textContent = `剩余棋子：${remaining}（无路可走！）`;
+  } else {
+    statEl.textContent = `剩余棋子：${remaining}`;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#1a0a2e';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+
+  const boardPixelSize = BOARD_SIZE * CELL;
+  ctx.fillStyle = '#2d1b4e';
+  ctx.beginPath();
+  ctx.roundRect(OFFSET, OFFSET, boardPixelSize, boardPixelSize, 12);
+  ctx.fill();
+
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const x = OFFSET + c * CELL;
+      const y = OFFSET + r * CELL;
+      if (board[r][c] === -1) continue;
+
+      ctx.fillStyle = '#1a0a2e';
+      ctx.beginPath();
+      ctx.arc(x + CELL/2, y + CELL/2, CELL/2 - 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (board[r][c] === 1) {
+        const isSel = selected && selected.r === r && selected.c === c;
+        const grad = ctx.createRadialGradient(x + CELL/2 - 4, y + CELL/2 - 4, 2, x + CELL/2, y + CELL/2, CELL/2 - 5);
+        if (isSel) {
+          grad.addColorStop(0, '#ff6b6b');
+          grad.addColorStop(1, '#c0392b');
+        } else {
+          grad.addColorStop(0, '#ffd700');
+          grad.addColorStop(1, '#b8860b');
+        }
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x + CELL/2, y + CELL/2, CELL/2 - 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = isSel ? '#ff0000' : '#8b6914';
+        ctx.lineWidth = isSel ? 3 : 1;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.arc(x + CELL/2 - 5, y + CELL/2 - 5, CELL/6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  if (selected) {
+    const moves = getValidMoves(selected.r, selected.c);
+    for (const move of moves) {
+      const x = OFFSET + move.c * CELL;
+      const y = OFFSET + move.r * CELL;
+      ctx.fillStyle = 'rgba(0, 255, 136, 0.3)';
+      ctx.beginPath();
+      ctx.arc(x + CELL/2, y + CELL/2, CELL/2 - 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#00ff88';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+}
+
+function getCell(e) {
+  const rect = cv.getBoundingClientRect();
+  const x = e.clientX - rect.left - OFFSET;
+  const y = e.clientY - rect.top - OFFSET;
+  if (x < 0 || y < 0) return null;
+  const c = Math.floor(x / CELL);
+  const r = Math.floor(y / CELL);
+  if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return null;
+  return {r, c};
+}
+
+cv.addEventListener('click', e => {
+  if (autoTimer) return;
+  const cell = getCell(e);
+  if (!cell) return;
+  const {r, c} = cell;
+  if (board[r][c] === -1) return;
+
+  if (selected) {
+    const moves = getValidMoves(selected.r, selected.c);
+    const move = moves.find(m => m.r === r && m.c === c);
+    if (move) {
+      history.push({board: board.map(row => [...row])});
+      board[selected.r][selected.c] = 0;
+      board[move.r][move.c] = 1;
+      board[move.eatR][move.eatC] = 0;
+      selected = null;
+      draw();
+      updateStat();
+    } else if (board[r][c] === 1) {
+      selected = {r, c};
+      draw();
+    } else {
+      selected = null;
+      draw();
+    }
+  } else {
+    if (board[r][c] === 1) {
+      selected = {r, c};
+      draw();
+    }
+  }
+});
+
+function undo() {
+  if (autoTimer) return;
+  if (history.length === 0) return;
+  board = history.pop().board.map(row => [...row]);
+  selected = null;
+  draw();
+  updateStat();
+}
+
+function restart() {
+  initBoard();
+  draw();
+}
+
+function hint() {
+  if (autoTimer) return;
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (board[r][c] === 1) {
+        const moves = getValidMoves(r, c);
+        if (moves.length > 0) {
+          selected = {r, c};
+          draw();
+          document.getElementById('hint').textContent = `试试把行${r+1}列${c+1}的棋子跳到行${moves[0].r+1}列${moves[0].c+1}！`;
+          return;
+        }
+      }
+    }
+  }
+  document.getElementById('hint').textContent = '没有可走的棋步了！';
+}
+
+// ============ 自动走 ============
+
+function stopAuto() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+}
+
+function autoRandom() {
+  stopAuto();
+  autoTimer = setInterval(() => {
+    const allMoves = getAllMoves();
+    if (allMoves.length === 0) {
+      stopAuto();
+      updateStat();
+      return;
+    }
+    const move = allMoves[Math.floor(Math.random() * allMoves.length)];
+    doMove(move);
+    draw();
+    updateStat();
+    if (!hasAnyMove()) stopAuto();
+  }, 400);
+}
+
+function autoPerfect() {
+  stopAuto();
+  let stepIdx = 0;
+  autoTimer = setInterval(() => {
+    if (stepIdx >= PERFECT_SOLUTION.length) {
+      stopAuto();
+      updateStat();
+      return;
+    }
+    const [fr, fc, tr, tc] = PERFECT_SOLUTION[stepIdx];
+    // 计算被吃掉的棋子位置
+    const er = fr + (tr - fr) / 2;
+    const ec = fc + (tc - fc) / 2;
+    doMove({fromR: fr, fromC: fc, toR: tr, toC: tc, eatR: er, eatC: ec});
+    stepIdx++;
+    draw();
+    updateStat();
+  }, 500);
+}
+
+initBoard();
+draw();
+</script>
+</body>
+</html>

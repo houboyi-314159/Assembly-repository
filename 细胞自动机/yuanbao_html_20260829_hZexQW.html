@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>彩色生命 · Color Cellular</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
+  }
+  h1 { margin-bottom: 6px; font-size: 22px; text-shadow: 0 0 10px #ff00ff; color: #ff66ff; }
+  .subtitle { font-size: 12px; color: #aaa; margin-bottom: 12px; }
+  canvas { border: 2px solid #333; border-radius: 6px; cursor: pointer; }
+  .controls { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button {
+    padding: 7px 14px; border: 1px solid #888; background: transparent;
+    color: #ccc; cursor: pointer; font-family: inherit; font-size: 13px;
+    border-radius: 4px; transition: all .2s;
+  }
+  button:hover { background: #333; color: #fff; }
+  button.primary { border-color: #ff66ff; color: #ff66ff; }
+  button.primary:hover { background: #ff66ff; color: #0a0a1a; box-shadow: 0 0 10px #ff66ff; }
+  .stat { margin-top: 8px; font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+<h1>🌈 彩色生命</h1>
+<div class="subtitle">随机初始 · 彩色细胞自动机 · 空格暂停</div>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <button class="primary" onclick="toggle()">▶ 开始 / 暂停</button>
+  <button onclick="step()">⏭ 单步</button>
+  <button onclick="randomize()">🎲 重新随机</button>
+  <button onclick="clearAll()">🗑 清空</button>
+  <button onclick="addRandom()">✨ 随机撒点</button>
+</div>
+<div class="stat" id="stat">代数：0 | 存活：0</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const COLS = 80;
+const ROWS = 50;
+const CELL = 10;
+cv.width = COLS * CELL;
+cv.height = ROWS * CELL;
+
+let grid = [];
+let running = false;
+let generation = 0;
+let animId = null;
+let speed = 80; // ms per frame
+
+// 颜色池
+function randomColor() {
+  const hue = Math.floor(Math.random() * 360);
+  return `hsl(${hue}, 85%, 60%)`;
+}
+
+function randomColorRGB() {
+  return {
+    r: Math.floor(Math.random() * 255),
+    g: Math.floor(Math.random() * 255),
+    b: Math.floor(Math.random() * 255)
+  };
+}
+
+function colorToString(c) {
+  return `rgb(${c.r},${c.g},${c.b})`;
+}
+
+// 颜色混合：取两个颜色的平均值
+function blendColor(c1, c2) {
+  return {
+    r: Math.floor((c1.r + c2.r) / 2),
+    g: Math.floor((c1.g + c2.g) / 2),
+    b: Math.floor((c1.b + c2.b) / 2)
+  };
+}
+
+function init() {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = { alive: false, color: null };
+    }
+  }
+  randomize();
+}
+
+function randomize() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (Math.random() < 0.35) {
+        grid[r][c].alive = true;
+        grid[r][c].color = randomColorRGB();
+      } else {
+        grid[r][c].alive = false;
+        grid[r][c].color = null;
+      }
+    }
+  }
+  generation = 0;
+  draw();
+  updateStat();
+}
+
+function clearAll() {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c].alive = false;
+      grid[r][c].color = null;
+    }
+  generation = 0;
+  draw();
+  updateStat();
+}
+
+function addRandom() {
+  const count = 200;
+  for (let i = 0; i < count; i++) {
+    const r = Math.floor(Math.random() * ROWS);
+    const c = Math.floor(Math.random() * COLS);
+    grid[r][c].alive = true;
+    grid[r][c].color = randomColorRGB();
+  }
+  draw();
+  updateStat();
+}
+
+function countNeighbors(r, c) {
+  let count = 0;
+  const neighbors = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+        if (grid[nr][nc].alive) {
+          count++;
+          neighbors.push(grid[nr][nc].color);
+        }
+      }
+    }
+  }
+  return { count, neighbors };
+}
+
+function step() {
+  const next = [];
+  let aliveCount = 0;
+
+  for (let r = 0; r < ROWS; r++) {
+    next[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      const { count, neighbors } = countNeighbors(r, c);
+      const cell = grid[r][c];
+
+      if (cell.alive) {
+        // 存活规则：2或3个邻居则继续存活
+        if (count === 2 || count === 3) {
+          next[r][c] = { alive: true, color: cell.color };
+          aliveCount++;
+        } else {
+          next[r][c] = { alive: false, color: null };
+        }
+      } else {
+        // 诞生规则：恰好3个邻居
+        if (count === 3) {
+          // 新细胞颜色 = 三个邻居颜色混合
+          let blended = neighbors[0];
+          for (let i = 1; i < neighbors.length; i++) {
+            blended = blendColor(blended, neighbors[i]);
+          }
+          next[r][c] = { alive: true, color: blended };
+          aliveCount++;
+        } else {
+          next[r][c] = { alive: false, color: null };
+        }
+      }
+    }
+  }
+
+  grid = next;
+  generation++;
+  draw();
+  updateStat();
+}
+
+function draw() {
+  // 黑色背景
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c].alive) {
+        ctx.fillStyle = colorToString(grid[r][c].color);
+        ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+  }
+}
+
+function updateStat() {
+  let alive = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (grid[r][c].alive) alive++;
+  document.getElementById('stat').textContent = `代数：${generation} | 存活：${alive}`;
+}
+
+function toggle() {
+  if (running) {
+    running = false;
+    cancelAnimationFrame(animId);
+  } else {
+    running = true;
+    loop();
+  }
+}
+
+let lastTime = 0;
+function loop(time) {
+  if (!running) return;
+  if (time - lastTime > speed) {
+    step();
+    lastTime = time;
+  }
+  animId = requestAnimationFrame(loop);
+}
+
+// 点击放置/擦除
+let isDragging = false;
+let dragMode = null; // 'paint' or 'erase'
+
+cv.addEventListener('mousedown', e => {
+  isDragging = true;
+  const rect = cv.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / CELL);
+  const r = Math.floor((e.clientY - rect.top) / CELL);
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    dragMode = grid[r][c].alive ? 'erase' : 'paint';
+    if (dragMode === 'paint') {
+      grid[r][c].alive = true;
+      grid[r][c].color = randomColorRGB();
+    } else {
+      grid[r][c].alive = false;
+      grid[r][c].color = null;
+    }
+    draw();
+    updateStat();
+  }
+});
+
+cv.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const rect = cv.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / CELL);
+  const r = Math.floor((e.clientY - rect.top) / CELL);
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+    if (dragMode === 'paint' && !grid[r][c].alive) {
+      grid[r][c].alive = true;
+      grid[r][c].color = randomColorRGB();
+    } else if (dragMode === 'erase' && grid[r][c].alive) {
+      grid[r][c].alive = false;
+      grid[r][c].color = null;
+    }
+    draw();
+    updateStat();
+  }
+});
+
+cv.addEventListener('mouseup', () => isDragging = false);
+cv.addEventListener('mouseleave', () => isDragging = false);
+
+// 键盘
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); toggle(); }
+});
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>康威生命游戏 · 点燃系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #e0e0e0;
+  }
+  h1 { margin-bottom: 8px; font-size: 22px; text-shadow: 0 0 10px #00ff88; }
+  canvas { border: 1px solid #333; cursor: pointer; }
+  .controls { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 720px; }
+  button {
+    padding: 7px 14px; border: 1px solid #00ff88; background: transparent;
+    color: #00ff88; cursor: pointer; font-family: inherit; font-size: 13px;
+    border-radius: 4px; transition: all .2s;
+  }
+  button:hover { background: #00ff88; color: #0a0a1a; }
+  button.fire { border-color: #ff4444; color: #ff4444; }
+  button.fire:hover { background: #ff4444; color: #0a0a1a; box-shadow: 0 0 12px #ff4444; }
+  .slider-row { margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: #aaa; }
+  .slider-row input[type="range"] { width: 160px; accent-color: #ff4444; }
+  .slider-row .val { color: #ff4444; font-weight: bold; min-width: 20px; }
+  .info { margin-top: 8px; font-size: 12px; color: #888; }
+  .stat { margin-top: 6px; font-size: 13px; color: #00ff88; }
+</style>
+</head>
+<body>
+<h1>🧬 康威生命游戏</h1>
+<canvas id="cv"></canvas>
+<div class="controls">
+  <button onclick="toggleRun()">▶ 开始/暂停</button>
+  <button onclick="step()">⏭ 单步</button>
+  <button onclick="randomize()">🎲 随机</button>
+  <button onclick="clearAll()">🗑 清空</button>
+  <button class="fire" onclick="ignite()">🔥 点燃</button>
+  <button onclick="preset('blinker')">💡 闪烁器</button>
+  <button onclick="preset('toad')">🐸 蟾蜍</button>
+  <button onclick="preset('beacon')">📡 信标</button>
+  <button onclick="preset('pulsar')">⭐ 脉冲星</button>
+  <button onclick="preset('glider')">🚀 滑翔机</button>
+  <button onclick="preset('gosper')">💥 高斯帕枪</button>
+</div>
+<div class="slider-row">
+  点燃力度：
+  <input type="range" id="firePower" min="1" max="5" value="3" oninput="updateSlider()">
+  <span class="val" id="fireVal">3</span>
+  <span id="fireLabel">中等</span>
+</div>
+<div class="stat" id="stat">代数 0 · 存活 0 · 相位 -</div>
+<div class="info">点击/拖拽画布放细胞 · 空格键暂停/继续 · 🔥点燃会在稳定结构旁投放细胞</div>
+
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const COLS = 60, ROWS = 40, CELL = 14, GAP = 1;
+cv.width = COLS * (CELL + GAP) + GAP;
+cv.height = ROWS * (CELL + GAP) + GAP;
+
+let grid = makeGrid();
+let running = false, animId = null, last = 0, speed = 90, gen = 0;
+
+function makeGrid() {
+  return Array.from({length: ROWS}, () => Array(COLS).fill(0));
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  let alive = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * (CELL + GAP) + GAP, y = r * (CELL + GAP) + GAP;
+      if (grid[r][c]) {
+        alive++;
+        ctx.fillStyle = '#00ff88';
+        ctx.shadowColor = '#00ff88'; ctx.shadowBlur = 4;
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(x, y, CELL, CELL);
+      }
+    }
+  }
+  let phase = '-';
+  if (currentPreset === 'pulsar') phase = `脉冲星 P${gen % 3}`;
+  else if (currentPreset === 'blinker') phase = `闪烁器 P${gen % 2}`;
+  else if (currentPreset === 'toad') phase = `蟾蜍 P${gen % 2}`;
+  else if (currentPreset === 'beacon') phase = `信标 P${gen % 2}`;
+  else if (currentPreset) phase = `周期 ${currentPeriod || '-'}`;
+  document.getElementById('stat').textContent = `代数 ${gen} · 存活 ${alive} · ${phase}`;
+}
+
+function neighbors(r, c) {
+  let n = 0;
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      n += grid[(r + dr + ROWS) % ROWS][(c + dc + COLS) % COLS];
+    }
+  return n;
+}
+
+function nextGen() {
+  const ng = makeGrid();
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      const n = neighbors(r, c);
+      ng[r][c] = grid[r][c] ? (n === 2 || n === 3 ? 1 : 0) : (n === 3 ? 1 : 0);
+    }
+  grid = ng; gen++;
+}
+
+function loop(t) {
+  if (!running) return;
+  if (t - last > speed) { nextGen(); draw(); last = t; }
+  animId = requestAnimationFrame(loop);
+}
+
+function toggleRun() {
+  running = !running;
+  if (running) { last = performance.now(); loop(last); }
+  else cancelAnimationFrame(animId);
+}
+function step() { running = false; cancelAnimationFrame(animId); nextGen(); draw(); }
+function randomize() { clearAll(); for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) grid[r][c] = Math.random() > 0.72 ? 1 : 0; gen = 0; currentPreset = ''; draw(); }
+function clearAll() { running = false; cancelAnimationFrame(animId); grid = makeGrid(); gen = 0; currentPreset = ''; draw(); }
+
+function updateSlider() {
+  const v = document.getElementById('firePower').value;
+  document.getElementById('fireVal').textContent = v;
+  const labels = {1:'微风', 2:'轻触', 3:'中等', 4:'猛烈', 5:'核爆'};
+  document.getElementById('fireLabel').textContent = labels[v];
+}
+
+function ignite() {
+  running = false; cancelAnimationFrame(animId);
+  const power = parseInt(document.getElementById('firePower').value);
+
+  // 力度参数
+  const configs = {
+    1: { attempts: 80,  clusterMin: 1, clusterMax: 2, maxPlace: 10, radius: 2 },
+    2: { attempts: 150, clusterMin: 2, clusterMax: 3, maxPlace: 18, radius: 3 },
+    3: { attempts: 200, clusterMin: 3, clusterMax: 6, maxPlace: 30, radius: 4 },
+    4: { attempts: 300, clusterMin: 4, clusterMax: 8, maxPlace: 50, radius: 5 },
+    5: { attempts: 500, clusterMin: 6, clusterMax: 12, maxPlace: 100, radius: 7 }
+  };
+  const cfg = configs[power];
+
+  let placed = 0;
+  for (let t = 0; t < cfg.attempts; t++) {
+    const r = Math.floor(Math.random() * ROWS);
+    const c = Math.floor(Math.random() * COLS);
+    const n = neighbors(r, c);
+    if (n > 0 && n < 4) {
+      const clusterSize = cfg.clusterMin + Math.floor(Math.random() * (cfg.clusterMax - cfg.clusterMin + 1));
+      for (let i = 0; i < clusterSize; i++) {
+        const rr = (r + Math.floor(Math.random() * (cfg.radius * 2 + 1)) - cfg.radius + ROWS) % ROWS;
+        const cc = (c + Math.floor(Math.random() * (cfg.radius * 2 + 1)) - cfg.radius + COLS) % COLS;
+        if (!grid[rr][cc]) { grid[rr][cc] = 1; placed++; }
+      }
+      if (placed >= cfg.maxPlace) break;
+    }
+  }
+
+  // 兜底：随机撒
+  if (placed === 0) {
+    const fallback = cfg.maxPlace;
+    for (let i = 0; i < fallback; i++) {
+      grid[Math.floor(Math.random() * ROWS)][Math.floor(Math.random() * COLS)] = 1;
+    }
+  }
+
+  currentPreset = '';
+  draw();
+}
+
+let currentPreset = '';
+let currentPeriod = 0;
+
+const PULSAR = [
+  [2,4],[2,5],[2,6],[2,10],[2,11],[2,12],
+  [4,2],[4,7],[4,9],[4,14],
+  [5,2],[5,7],[5,9],[5,14],
+  [6,2],[6,7],[6,9],[6,14],
+  [7,4],[7,5],[7,6],[7,10],[7,11],[7,12],
+  [9,4],[9,5],[9,6],[9,10],[9,11],[9,12],
+  [10,2],[10,7],[10,9],[10,14],
+  [11,2],[11,7],[11,9],[11,14],
+  [12,2],[12,7],[12,9],[12,14],
+  [14,4],[14,5],[14,6],[14,10],[14,11],[14,12]
+];
+
+function preset(type) {
+  clearAll();
+  const cy = Math.floor(ROWS / 2), cx = Math.floor(COLS / 2);
+  currentPreset = type;
+
+  if (type === 'blinker') {
+    [[0,-1],[0,0],[0,1]].forEach(([dr,dc]) => grid[cy+dr][cx+dc] = 1);
+    currentPeriod = 2;
+  } else if (type === 'toad') {
+    [[0,1],[0,2],[0,3],[1,0],[1,1],[1,2]].forEach(([dr,dc]) => grid[cy+dr][cx+dc] = 1);
+    currentPeriod = 2;
+  } else if (type === 'beacon') {
+    [[0,0],[0,1],[1,0],[1,1],[2,2],[2,3],[3,2],[3,3]].forEach(([dr,dc]) => grid[cy+dr][cx+dc] = 1);
+    currentPeriod = 2;
+  } else if (type === 'pulsar') {
+    const offR = cy - 6, offC = cx - 6;
+    PULSAR.forEach(([r, c]) => {
+      const rr = offR + r, cc = offC + c;
+      if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) grid[rr][cc] = 1;
+    });
+    currentPeriod = 3;
+  } else if (type === 'glider') {
+    [[0,1],[1,2],[2,0],[2,1],[2,2]].forEach(([dr,dc]) => grid[cy+dr][cx+dc] = 1);
+    currentPeriod = 4;
+  } else if (type === 'gosper') {
+    const g = [[0,24],[1,22],[1,24],[2,12],[2,13],[2,20],[2,21],[2,34],[2,35],
+      [3,11],[3,15],[3,20],[3,21],[3,34],[3,35],[4,0],[4,1],[4,10],[4,16],[4,20],[4,21],
+      [5,0],[5,1],[5,10],[5,14],[5,16],[5,17],[5,22],[5,24],[6,10],[6,16],[6,24],
+      [7,11],[7,15],[8,12],[8,13]];
+    g.forEach(([r,c]) => { if (r < ROWS && c < COLS) grid[r][c] = 1; });
+    currentPeriod = 30;
+  }
+  draw();
+}
+
+// 鼠标
+let drag = false;
+function cellAt(e) {
+  const rect = cv.getBoundingClientRect();
+  const c = Math.floor((e.clientX - rect.left) / (CELL + GAP));
+  const r = Math.floor((e.clientY - rect.top) / (CELL + GAP));
+  return {r, c};
+}
+cv.addEventListener('mousedown', e => { drag = true; currentPreset = ''; const {r,c} = cellAt(e); if (r>=0&&r<ROWS&&c>=0&&c<COLS){grid[r][c]=grid[r][c]?0:1;draw();}});
+cv.addEventListener('mousemove', e => { if(!drag)return; currentPreset = ''; const {r,c}=cellAt(e); if(r>=0&&r<ROWS&&c>=0&&c<COLS){grid[r][c]=1;draw();}});
+window.addEventListener('mouseup', () => drag = false);
+document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); toggleRun(); } });
+
+randomize();
+</script>
+</body>
+</html>
